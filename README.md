@@ -41,7 +41,7 @@ It is quite an old project, actually. **cat**_farm_'s ancestors have been used i
 * No single point of failure(SPOF) as there is no admin node. Management can be done on either node.
 * Agentless. `ssh`, `scp` and key-based authentication between nodes are our good old friends.
 * Supports data and database schema upgrades via Flyway.
-* Continues delivery friendly (Management can be done via Ant script from any machine)
+* Continuous integration/delivery friendly (Management can be done via Ant script from any machine)
 * Convention over configuration
 * No port conflicts and manual port configuration. Ports are dynamically generated from application's base port and instance's name.
 
@@ -960,7 +960,7 @@ Here is the example output of deployment on node `rose`:
       inflating: /home/kumlali/myapp/instances/myapp2/conf/tomcat-users.xml
     [dev:rose:myapp2] Instance configuration in /home/kumlali/myapp/deploy/latest/instance.zip has been deployed.
 
-## Integration to Continues Delivery Pipeline
+## Integration to Continuous Integration/Delivery Pipeline
 
 You can easily integrate **cat**_farm_ to your pipeline. By the way, [Jenkins](https://jenkins.io/) is a great tool with great pipeline support.
 
