@@ -1,4 +1,4 @@
-![Paw icon from https://www.iconsdb.com/custom-color/paw-icon.html is used in the logo. This icon is provided as CC0 1.0 Universal (CC0 1.0) Public Domain Dedication.](images/logo.svg)
+![Paw icon from https://www.iconsdb.com/custom-color/paw-icon.html is used in the logo. This icon is provided as CC0 1.0 Universal (CC0 1.0) Public Domain Dedication.](images/logo.png)
 
 **cat**_farm_ is a tool that lets DevOps teams to manage Apache Tomcat instances spread over multiple hosts(nodes), easily.
 
