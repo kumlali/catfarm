@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<configuration>
+  <cache_enabled>@myapp_server_config.cache_enabled@</cache_enabled>
+  <rest.api_url_pattern>@myapp_server_config.rest.api_url_pattern@</rest.api_url_pattern>
+  <rest.verification_enabled>@myapp_server_config.rest.verification_enabled@</rest.verification_enabled>
+  <sftp.host>@myapp_server_config.sftp.host@</sftp.host>
+  <sftp.port>@myapp_server_config.sftp.port@</sftp.port>
+  <sftp.user>@myapp_server_config.sftp.user@</sftp.user>
+  <sftp.pass>@myapp_server_config.sftp.pass@</sftp.pass>
+  <sftp.directory>@myapp_server_config.sftp.directory@</sftp.directory>
+</configuration>

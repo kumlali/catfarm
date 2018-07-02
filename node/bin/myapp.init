@@ -1,0 +1,53 @@
+#!/bin/sh
+# ------------------------------------------------------------------------------
+# myapp
+#
+# description: Manages node releated tasks such as starting, stopping and restarting all the instances.
+# ------------------------------------------------------------------------------
+set -o errexit
+
+APP=myapp
+
+# CUSTOMIZE: Use your own application path instead of /opt
+APP_HOME=/opt/$APP
+
+MNGSCRIPT="$APP_HOME"/bin/node.sh
+USER=tomcat
+
+test -d "$APP_HOME" || {
+  echo "ERROR: $APP not found: $APP_HOME"
+  exit 1
+}
+
+grep ^"$USER": /etc/passwd >/dev/null || {
+  echo "ERROR: System user not found: $USER"
+  exit 2
+}
+
+export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
+
+case "$1" in
+  start)
+    test -x "$MNGSCRIPT" || exit 0
+    echo "Starting $APP..."
+    su - $USER -c "$MNGSCRIPT start-verify"
+    echo "done."
+    ;;
+  stop)
+    test -x "$MNGSCRIPT" || exit 0
+    echo "Stopping $APP..."
+    su - $USER -c "$MNGSCRIPT stop"
+    echo "done."
+    ;;
+
+  restart)
+    "$0" stop
+    "$0" start
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit 0

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" packages="biz.paluch.logging.gelf.log4j2">
+  <Appenders>    
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%-5p %d{dd/MM/yyyy HH:mm:ss} [%t] %m [%c:%L] [%X{serverName}] %n"/>
+    </Console>
+    <File name="File" fileName="${sys:catalina.base}/logs/myapp.log">
+      <PatternLayout pattern="%-5p %d{dd/MM/yyyy HH:mm:ss} [%t] %m [%c:%L] [%X{serverName}] %n"/>
+    </File>
+    <!--
+    <Gelf name="Gelf" 
+          host="graylog.mycompany.local" 
+          port="12217" 
+          extractStackTrace="true"
+          filterStackTrace="true" 
+          mdcProfiling="true" 
+          includeFullMdc="true" 
+          maximumMessageSize="8192">
+      <Field name="timestamp" pattern="%d{dd/MM/yyyy HH:mm:ss}" />
+      <Field name="level" pattern="%level" />
+      <Field name="simpleClassName" pattern="%C{1}" />
+      <Field name="className" pattern="%C" />
+      <Field name="server.fqdn" pattern="%host{fqdn}" />
+      <Field name="environment" literal="dev" />
+      <Field name="application" literal="myapp" />
+      <Field name="version" literal="0.0.1" />
+    </Gelf>
+    -->
+  </Appenders>
+  <Loggers>
+    <Root level="trace">
+      <!-- <AppenderRef ref="Console"/> -->
+      <AppenderRef ref="File"/>
+      <!-- <AppenderRef ref="Gelf"/> -->
+    </Root>
+  </Loggers>
+</Configuration>

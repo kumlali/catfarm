@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+
+<Context>
+
+    <!--
+      * Put JDBC driver to Tomcat's lib directory.
+
+      * If custom factory is used to decrypt the encrypted password, put 
+        decryption library to Tomcat's lib directory. See https://goo.gl/EE1m6i
+    -->
+    <Resource name="@context.resource.datasource.name@"
+              factory="@context.resource.datasource.factory@"
+              auth="Container"
+              type="javax.sql.DataSource"
+              username="@context.resource.datasource.username@"
+              password="@context.resource.datasource.password@"
+              driverClassName="@context.resource.datasource.driverClassName@"
+              url="@context.resource.datasource.url@"
+              connectionProperties="@context.resource.datasource.connectionProperties@"
+              initialSize="@context.resource.datasource.initialSize@"
+              minIdle="@context.resource.datasource.minIdle@"
+              maxActive="@context.resource.datasource.maxActive@"
+              maxIdle="@context.resource.datasource.maxIdle@"
+              testOnBorrow="@context.resource.datasource.testOnBorrow@"
+              validationQuery="@context.resource.datasource.validationQuery@"
+              validationInterval="@context.resource.datasource.validationInterval@"
+              jdbcInterceptors="@context.resource.datasource.jdbcInterceptors@"
+              />
+
+</Context>

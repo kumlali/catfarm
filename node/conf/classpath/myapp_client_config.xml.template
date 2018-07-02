@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<configuration>
+  <auth>@myapp_client_config_auth@</auth>
+  <service1_url>@myapp_client_config.service1_url@</service1_url>
+  <service2_url>@myapp_client_config.service2_url@</service2_url>
+</configuration>

@@ -1,0 +1,630 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- CUSTOMIZE: 'name' should be updated -->
+<project name="myapp" default="help" basedir="." xmlns:artifact="antlib:org.apache.maven.artifact.ant" xmlns:flyway="antlib:org.flywaydb.ant">
+
+  <description>This script is used for operations and release management tasks of ${ant.project.name} application.</description>
+
+  <!-- Build time stamp. -->
+  <tstamp>
+    <format property="build.time" pattern="dd/MM/yyyy hh:mm aa" unit="hour" />
+  </tstamp>
+
+  <!-- 
+    Check whether pre-conditions are satisfied.
+  -->
+  <fail unless="domain" message="'domain' is missing. Please pass 'dev', 'qa', 'staging', 'prod' etc. as JVM parameter. (e.g. -Ddomain=dev)" />
+
+  <!-- 
+    Load domain(dev, qa, staging, prod etc.) specific properties from 
+    domain's property file.
+  -->
+  <property file="properties/${domain}.properties" />
+
+  <!--
+    Load environment varibles to 'env' property. Environment variables 
+    then can be accessed by ${env.VARIABLE} within Ant script.
+  -->
+  <property environment="env"/>
+
+  <!--
+    Load jar files under Ant's lib directory.
+    
+    jar files for ant-contrib, jsch, Flyway etc. must be put under that directory.
+    into Ant's lib directory.
+    
+    Requires ANT_HOME environment variable to be set. If it does not
+    exist, then absolute path of the lib directory must be used.
+  -->
+  <path id="classpath">
+    <fileset dir="${env.ANT_HOME}/lib">
+      <include name="**/*.jar" />
+    </fileset>
+  </path>
+
+  <!-- 
+    Load ant-contrib tasks such as trycatch (Needs ant-contrib-X.Y.jar) 
+  -->
+  <taskdef resource="net/sf/antcontrib/antcontrib.properties" classpathref="classpath" onerror="report" />
+
+  <!--
+    Load Flyway tasks (Needs flyway-ant-X.Y.jar and flyway-core-X.Y.jar)
+  -->
+  <taskdef resource="org/flywaydb/ant/antlib.xml" uri="antlib:org.flywaydb.ant" />
+
+  <!--
+    Source: https://goo.gl/4xT7Fy
+
+    Loads entries from a manifest file.
+    @jar     The jar from where to read
+    @prefix  A prefix to prepend
+  -->
+  <macrodef name="loadmf">
+    <attribute name="war" />
+    <attribute name="prefix" default="" />
+    <sequential>
+      <loadproperties>
+        <!-- Load the manifest entries -->
+        <zipentry zipfile="@{war}" name="META-INF/MANIFEST.MF" />
+        <!-- Add the prefix -->
+        <filterchain>
+          <prefixlines prefix="@{prefix}" />
+        </filterchain>
+      </loadproperties>
+    </sequential>
+  </macrodef>
+  
+  <!-- 
+    Source: https://stackoverflow.com/a/37896164/5903564 
+
+    Returns substring of given string.
+  -->
+  <macrodef name="getsubstring">
+    <attribute name="src"/>
+    <attribute name="start"/>
+    <attribute name="length"/>
+    <attribute name="result"/>
+    <sequential>
+      <loadresource property="@{result}">
+        <string value="@{src}}" />
+          <filterchain>
+            <tokenfilter>
+              <replaceregex pattern="^.{@{start}}(.{@{length}}).*" replace="\1" />
+            </tokenfilter>
+          </filterchain>
+      </loadresource>
+    </sequential>
+  </macrodef>  
+
+
+
+  <!-- =================================================================
+       Deployment releated tasks
+       ================================================================= -->
+  <!-- 
+    CUSTOMIZE: Update Maven repository that has your artifacts to be 
+    packaged.
+  -->
+  <property name="maven.remoteRepositories" 
+    value="snapshots::::https://repo.mycompany.com/snapshots,releases::::https://repo.mycompany.com/releases" />
+
+
+  <!--
+    Creates 'app.zip' file to be deployed on each Tomcat instance on each node.
+  -->
+  <target name="create-app-pack">
+
+    <!-- Check whether pre-conditions are satisfied -->
+    <fail unless="version" message="'version' is missing. Did you pass -Dversion=app_version to Ant?" />
+
+    <property name="appDir" value="target/${domain}/app" />
+    <mkdir dir="${appDir}" />
+
+    <!--
+      CUSTOMIZE: Update artifact info according to your application. Multiple war
+      files can be packaged in the 'app.zip' file.
+    -->
+    <!--
+    <artifact:mvn>
+      <arg value="org.apache.maven.plugins:maven-dependency-plugin:2.8:get" />
+      <arg value="-DremoteRepositories=${maven.remoteRepositories}" />
+      <arg value="-Dartifact=com.mycompany.myproject:${CONF_APP_NAME}:${version}:war" />
+      <arg value="-Ddest=${appDir}/${CONF_APP_NAME}.war" />
+      <arg value="-Dtransitive=false" />
+    </artifact:mvn>
+    -->
+
+    <!-- Create zip file from app pack home -->
+    <zip destfile="target/${domain}/app.zip" >
+      <fileset dir="${appDir}" includes="**/*"/>
+    </zip>
+    <delete failonerror="false" dir="${appDir}" />
+
+  </target>
+
+
+  <!--
+    Creates 'node.zip' file to be deployed on each node(machine).
+  -->
+  <target name="create-node-pack">
+
+    <property name="nodeDir" value="target/${domain}/node" />
+
+    <mkdir dir="${nodeDir}/logs/archive" />
+    <mkdir dir="${nodeDir}/instances/template" />
+    <mkdir dir="${nodeDir}/deploy/latest" />
+    <mkdir dir="${nodeDir}/deploy/previous" />
+
+    <!-- Generate domain specific files from templates -->
+    <copy toDir="${nodeDir}" overwrite="true">
+      <fileset dir="node" includes="**/*.template" />
+      <!-- Remove extension(.template) from file name -->
+      <mapper type="regexp" from="^(.*)\.(.*)$$" to="\1" />
+      <!-- Replace tokens -->
+      <filterset>
+        <filtersfile file="properties/${domain}.properties" />
+      </filterset>
+    </copy>
+
+    <!-- Copy non-template files to node pack home -->
+    <copy toDir="${nodeDir}" overwrite="true">
+      <fileset dir="node" excludes="**/*.template" />
+    </copy>
+
+    <!-- Create zip file from node pack home -->
+    <zip destfile="target/${domain}/node.zip" >
+      <fileset dir="${nodeDir}" includes="**/*"/>
+    </zip>
+    <delete failonerror="false" dir="${nodeDir}" />
+
+  </target>
+
+
+  <!--
+    Creates 'instance.zip' file to be deployed on each Tomcat instance
+    on each node.
+  -->
+  <target name="create-instance-pack">
+
+    <property name="instanceDir" value="target/${domain}/instance" />
+    <mkdir dir="${instanceDir}" />
+
+    <!-- Generate domain specific files from templates -->
+    <copy toDir="${instanceDir}" overwrite="true">
+      <fileset dir="instance" includes="**/*.template" />
+      <!-- Remove extension(.template) from file name -->
+      <mapper type="regexp" from="^(.*)\.(.*)$$" to="\1" />
+      <!-- Replace tokens -->
+      <filterset>
+        <filtersfile file="properties/${domain}.properties" />
+      </filterset>
+    </copy>
+
+    <!-- Copy non-template files to instance pack home -->
+    <copy toDir="${instanceDir}" overwrite="true">
+      <fileset dir="instance" excludes="**/*.template" />
+    </copy>
+
+    <!--
+      CUSTOMIZE: The application might need some libraries to reside in
+      Tomcat's 'lib' directory (e.g. JDBC driver, database password
+      decryptor). Here are samples that retrive those libraries from
+      Maven repository and put them under 'lib' directory. When the
+      instance pack is deployed, libraries under 'lib' directory are
+      copied to each Tomcat instance's 'lib' directory.
+    -->
+
+    <!--
+      Get Oracle JDBC driver from Maven repository and put it to 'lib' 
+      directory.
+    -->
+    <!--
+    <artifact:mvn>
+      <arg value="org.apache.maven.plugins:maven-dependency-plugin:2.8:copy" />
+      <arg value="-DremoteRepositories=${maven.remoteRepositories}" />
+      <arg value="-Dartifact=com.oracle:ojdbc6:11.2.0.2.0:jar" />
+      <arg value="-DoutputDirectory=${instanceDir}/lib" />
+    </artifact:mvn>
+    -->
+
+    <!--
+      Get database password decryptor from Maven repository and put it to
+      'lib' directory.
+
+      Note: We use encrypted database password in context resource.
+      Therefore, we need to decrypt it: https://stackoverflow.com/a/355758/5903564
+    -->
+    <!--
+    <artifact:mvn>
+      <arg value="org.apache.maven.plugins:maven-dependency-plugin:2.8:copy" />
+      <arg value="-DremoteRepositories=${maven.remoteRepositories}" />
+      <arg value="-Dartifact=com.mycompany:mycompany-datasource:0.0.1" />
+      <arg value="-DoutputDirectory=${instanceDir}/lib" />
+    </artifact:mvn>
+    -->
+
+    <!-- Create zip file from instance pack home -->
+    <zip destfile="target/${domain}/instance.zip" >
+      <fileset dir="${instanceDir}" includes="**/*"/>
+    </zip>
+    <delete failonerror="false" dir="${instanceDir}" />
+
+  </target>
+
+  
+  <!-- Creates 'app.zip', 'node.zip' and 'instance.zip' packages to be deployed. -->
+  <target name="create-deployment-packs">
+    <antcall target="create-node-pack" />
+    <antcall target="create-instance-pack" />
+    <antcall target="create-app-pack" />
+  </target>
+
+
+  <target name="copy-files-to-node">
+
+    <!-- Parse the row delimeted by ':' and get the first item (node) -->
+    <propertyregex property="node"
+                   input="${row}"
+                   regexp="^([^:]*)"
+                   select="\1"/>
+                   
+    <echo>Parsed row(node and instances): ${row}</echo>
+    <echo>Parsed node: ${node}</echo>
+
+    <antcall target="execute-remote-copy">
+      <param name="start-msg" value="Copying files to ${node} node of ${domain} domain..." />
+      <param name="finish-msg" value="Files have been copied to ${node} node of ${domain} domain." />
+    </antcall>
+
+  </target>
+
+
+  <target name="copy-files-to-domain">
+    <!-- Execute copy-files-to-node for each row of CONF_NODE_INSTANCES. Rows are seperated by ';' -->
+    <foreach param="row" list="${CONF_NODE_INSTANCES}" delimiter=";" target="copy-files-to-node"/>
+  </target>
+
+
+  <!-- Copies 'app.zip', 'node.zip' and 'instance.zip' packages to all the nodes. -->
+  <target name="copy-deployment-packs-to-domain">
+    <antcall target="copy-files-to-domain">
+      <param name="fromDir" value="target/${domain}/" />
+      <param name="includes" value="*.zip" />
+      <param name="toDir" value="${CONF_APP_HOME}/deploy/latest" />
+    </antcall>
+  </target>
+
+
+
+  <!-- =================================================================
+       Flyway related targets
+       ================================================================= -->
+  <!-- Flyway: Each environment/domain will have its own Flyway configuration. -->
+  <property name="flyway.url" value="${build.flyway.url}"/>
+  <property name="flyway.user" value="${build.flyway.user}"/>
+  <property name="flyway.password" value="${build.flyway.password}"/>
+  <property name="flyway.schemas" value="${build.flyway.schemas}"/>
+  <property name="flyway.table" value="${build.flyway.table}"/>
+  <property name="flyway.driver" value="${build.flyway.driver}"/>
+  <property name="flyway.encoding" value="${build.flyway.encoding}"/>
+
+  <!--
+    Extracts *.sql files from myapp.war/WEB-INF/lib/myapp.jar/db/migration to 
+    target/flyway directory.
+    
+    CUSTOMIZE: You can customize here if you do not embed *.sql files in 
+    application's package
+  -->
+  <target name="extract-sql-files-from-war">
+    <delete failonerror="false" dir="target/flyway" />
+    <mkdir dir="target/flyway" />
+    <mkdir dir="target/flyway/temp" />
+      <unzip src="target/applications/${CONF_APP_NAME}.war" dest="target/flyway/temp">
+        <patternset>
+          <include name="WEB-INF/lib/${CONF_APP_NAME}*.jar"/>
+        </patternset>
+        <mapper type="flatten"/>
+      </unzip>
+      <unzip dest="target/flyway/">
+        <patternset>
+            <include name="**/*.sql"/>
+        </patternset>
+        <fileset dir="target/flyway/temp/">
+            <include name="**/*.jar"/>
+        </fileset>
+      </unzip>
+  </target>
+
+
+  <!-- https://flywaydb.org/documentation/command/baseline -->
+  <target name="baseline-flyway">
+    <!-- Check whether pre-conditions are satisfied -->
+    <fail unless="baseline.version"
+          message="'baseline.version' is missing. Please pass '-Dbaseline.version=...' to JVM. (e.g. -Dbaseline.version=0.0.1.0)" />
+    <flyway:baseline baselineVersion="${baseline.version}"/>
+  </target>
+
+
+  <!-- https://flywaydb.org/documentation/command/info -->
+  <target name="info-flyway" depends="extract-sql-files-from-war">
+    <property name="flyway.locations" value="filesystem:target/flyway/db/migration" />
+    <flyway:info/>
+  </target>
+
+
+  <!-- https://flywaydb.org/documentation/command/validate -->
+  <target name="validate-flyway" depends="extract-sql-files-from-war">
+    <property name="flyway.locations" value="filesystem:target/flyway/db/migration" />
+    <flyway:validate/>
+  </target> 
+
+
+  <!-- https://flywaydb.org/documentation/command/repair -->
+  <target name="repair-flyway" depends="extract-sql-files-from-war">
+    <property name="flyway.locations" value="filesystem:target/flyway/db/migration" />
+    <flyway:repair/>
+  </target>   
+
+
+  <!-- https://flywaydb.org/documentation/command/migrate -->
+  <target name="migrate-flyway" depends="repair-flyway">
+    <property name="flyway.locations" value="filesystem:target/flyway/db/migration"/>
+    <flyway:migrate outOfOrder="true"/>
+  </target> 
+
+
+
+  <!-- =================================================================
+       Helper targets
+       ================================================================= -->
+  <target name="info">
+    <echo>===============================================</echo>
+    <echo>Domain: ${domain}</echo>
+    <echo>OS Name: ${os.name}</echo>
+    <echo>OS Architecture: ${os.arch}</echo>
+    <echo>OS Version: ${os.version}</echo>    
+    <echo>Ant Version: ${ant.version}</echo>
+    <echo>Java Version: ${ant.java.version}</echo>
+    <echo>Java Version detail: ${java.version}</echo>     
+    <echo>Application version: ${version}</echo>
+    <echo>Build Number: ${env.BUILD_NUMBER}</echo>
+    <echo>Build Time: ${build.time}</echo>
+    <echo>User Home: ${user.home}</echo>
+    <echo>Ssh User: ${build.ssh.user}</echo>
+    <echo>Classpath: ${toString:classpath}</echo>
+    <echo>===============================================</echo>
+  </target>
+
+
+  <target name="help" depends="info">
+    <echo>This script is used for operations and release management tasks of ${ant.project.name} application.</echo>
+    <echo />
+  </target>
+
+
+  <target name="wait_5_seconds">
+    <waitfor maxwait="5" maxwaitunit="second">
+      <available file="non-existent.file" />
+    </waitfor>
+  </target>
+
+
+  <target name="wait_15_seconds">
+    <waitfor maxwait="15" maxwaitunit="second">
+      <available file="non-existent.file" />
+    </waitfor>
+  </target>
+
+
+  <!-- 
+    We need a deployment master that manages application and artifact
+    deployment on all the nodes. Therefore, remote commands are executed 
+    on one of the nodes. We use the first node defined in CONF_NODE_INSTANCES.
+  -->
+  <target name="execute-remote-command">
+    <!-- Get the first row of CONF_NODE_INSTANCES. Rows are seperated by ';' -->
+    <propertyregex property="first_row"
+                   input="${CONF_NODE_INSTANCES}"
+                   regexp="^([^;]*)"
+                   select="\1"/>
+
+    <!-- Parse the row delimeted by ':' and get the first item (node) -->
+    <propertyregex property="node"
+                   input="${first_row}"
+                   regexp="^([^:]*)"
+                   select="\1"/>
+
+    <echo>First row(node and instances): ${first_row}</echo>
+    <echo>Node of first row: ${node}</echo>
+    
+    <echo message="${start-msg}" />
+    <sshexec host="${node}" 
+             username="${build.ssh.user}" 
+             keyfile="${user.home}/.ssh/id_rsa" 
+             trust="true" 
+             failonerror="true" 
+             port="22"
+             command="${CONF_APP_HOME}/bin/domain.sh ${command}" />
+    <echo message="${finish-msg}" />
+  </target>
+
+
+  <target name="execute-remote-copy">
+    <condition property="node_name_is_empty">
+      <equals arg1="" arg2="${node}" />
+    </condition>
+    <antcall target="execute-remote-copy-if-node-name-is-not-empty" />
+  </target>
+
+
+  <target name="execute-remote-copy-if-node-name-is-not-empty" unless="node_name_is_empty">
+    <echo message="${start-msg}" />
+    <echo message="Node: ${node}" />
+    <scp todir="${build.ssh.user}@${node}:${toDir}" 
+        failonerror="true" 
+        keyfile="${user.home}/.ssh/id_rsa" 
+        passphrase="" 
+        verbose="true" 
+        trust="true" 
+        port="22">
+      <fileset dir="${fromDir}" 
+        includes="${includes}"
+        excludes="${excludes}" />
+    </scp>
+    <echo message="${finish-msg}" />
+  </target>
+
+
+  <!-- 
+    Reads MANIFEST.MF and creates a version file from it having 
+    release information, then uploads the version file to webserver.
+    
+    CUSTOMIZE: You might be follow different version tracking practice.
+    
+    Hint: A small Python script would read /var/www/versions/*.version
+    files and create an HTML page that lists the release information
+    of all the applications in the company.
+  -->
+  <target name="create-and-upload-version-info">  
+    <property name="version.file" value="/var/www/versions/myapp-${CONF_DOMAIN}.version" />
+
+    <!-- Read manifest entries -->
+    <loadmf war="target/applications/${CONF_APP_NAME}.war" prefix="MYAPP-" />
+
+    <!-- Print them -->
+    <echoproperties prefix="MYAPP-" />
+
+    <!-- Get the first 6 characters of git SHA -->
+    <getsubstring src="${MYAPP-Git-Commit}" start="0" length="6" result="short-git-commit"/>
+
+    <!-- CUSTOMIZE: Update host where your webserver is running -->
+    <sshexec host="releases.mycompany.com" 
+             username="${build.ssh.user}" 
+             keyfile="${user.home}/.ssh/id_rsa" 
+             failonerror="false" 
+             trust="true" 
+             command="echo '${CONF_DOMAIN}|${MYAPP-Specification-Version}.${short-git-commit}.${MYAPP-Jenkins-Build-Number}|${MYAPP-Build-Url}|${build.time}' > ${version.file};chmod 666 ${version.file}" />
+  </target>
+
+
+
+  <!-- =================================================================
+       Domain management targets. 
+       
+       These targets are generally invoked directly and can be considered
+       as the interface of the this script.
+       ================================================================= -->
+  <target name="archive">
+    <antcall target="execute-remote-command">
+      <param name="command" value="archive" />
+      <param name="start-msg" value="Archiving deployment packages on '${domain}' domain..." />
+      <param name="finish-msg" value="Archiving of deployment packages on '${domain}' has been completed." />
+    </antcall>
+  </target>
+
+
+  <target name="restore">
+    <antcall target="execute-remote-command">
+      <param name="command" value="restore" />
+      <param name="start-msg" value="Restoring previous deployment packages on '${domain}' domain..." />
+      <param name="finish-msg" value="Restoring previous deployment packages on '${domain}' has been completed." />
+    </antcall>
+  </target>
+
+
+  <target name="deploy">
+    <antcall target="execute-remote-command">
+      <param name="command" value="deploy" />
+      <param name="start-msg" value="Deployment has been started on '${domain}' domain..." />
+      <param name="finish-msg" value="Deployment has been completed on '${domain}' domain." />
+    </antcall>
+  </target>
+
+
+  <target name="deploy-ha">
+    <antcall target="execute-remote-command">
+      <param name="command" value="deploy-ha" />
+      <param name="start-msg" value="Deployment has been started on '${domain}' domain..." />
+      <param name="finish-msg" value="Deployment has been completed on '${domain}' domain." />
+    </antcall>
+  </target>
+
+
+  <target name="start">
+    <antcall target="execute-remote-command">
+      <param name="command" value="start" />
+      <param name="start-msg" value="Starting '${domain}' domain..." />
+      <param name="finish-msg" value="'start' command has been issued for all the instances of all the nodes parallelly. Please make sure the instances are started up successfully." />
+    </antcall>
+  </target>
+
+
+  <target name="start-verify">
+    <antcall target="execute-remote-command">
+      <param name="command" value="start-verify" />
+      <param name="start-msg" value="Starting '${domain}' domain..." />
+      <param name="finish-msg" value="'${domain}' domain has been started." />
+    </antcall>
+  </target>
+
+
+  <target name="stop">
+    <antcall target="execute-remote-command">
+      <param name="command" value="stop" />
+      <param name="start-msg" value="Stopping '${domain}' domain..." />
+      <param name="finish-msg" value="'${domain}' domain has been stopped." />
+    </antcall>
+  </target>
+
+
+  <target name="restart">
+    <antcall target="execute-remote-command">
+      <param name="command" value="restart" />
+      <param name="start-msg" value="Restarting '${domain}' domain..." />
+      <param name="finish-msg" value="'${domain}' domain has been restarted." />
+    </antcall>
+  </target>
+
+
+  <target name="restart-ha">
+    <antcall target="execute-remote-command">
+      <param name="command" value="restart-ha" />
+      <param name="start-msg" value="Restarting '${domain}' domain..." />
+      <param name="finish-msg" value="'${domain}' domain has been restarted." />
+    </antcall>
+  </target>
+
+
+  <target name="status">
+    <antcall target="execute-remote-command">
+      <param name="command" value="status" />
+      <param name="start-msg" value="" />
+      <param name="finish-msg" value="" />
+    </antcall>
+  </target>
+
+
+
+  <target name="create-packs-and-deploy-ha"
+          depends="info,
+                   create-deployment-packs,
+                   archive,
+                   copy-deployment-packs-to-domain,
+                   wait_5_seconds,
+                   deploy-ha,
+                   create-and-upload-version-info" />
+
+
+  <target name="create-packs-and-deploy-ha-with-dbupdate"
+          depends="info,
+                   create-deployment-packs,
+                   archive,
+                   copy-deployment-packs-to-domain,
+                   wait_5_seconds,
+                   migrate-flyway,
+                   info-flyway,
+                   deploy-ha,
+                   create-and-upload-version-info" />
+
+
+</project>

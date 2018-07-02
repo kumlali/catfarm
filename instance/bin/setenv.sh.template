@@ -1,0 +1,16 @@
+#!/bin/sh
+# ------------------------------------------------------------------------------
+# WARNING: Because this file might be overriden while deployment, manual
+#          updates on the file might lost.
+# ------------------------------------------------------------------------------
+# Because CLASSPATH variable is unset in catalina.sh, setting and
+# exporting it before starting Tomcat does not work. Tomcat suggests 
+# us to set CLASSPATH variable in setenv.sh, if necessary. Please read
+# comments in catalina.sh.
+#
+# Although we are able to set and export all the other variables in
+# srvmng.sh which finally invokes catalina.sh, we have to use setenv.sh
+# only for adding custom definitions to CLASSPATH.
+# ------------------------------------------------------------------------------
+
+export CLASSPATH="${CLASSPATH}:${CONF_APP_HOME}/conf/classpath"
