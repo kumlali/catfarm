@@ -91,7 +91,7 @@ It is quite an old project, actually. **cat**_farm_'s ancestors have been used i
     
       Instructions help you make deployment for each new instance. If you do not want to repeat deployment step for each instance on each node, execute 
 
-        ant -Ddomain=dev deploy
+          ant -Ddomain=dev deploy
 
       under `catfarm` directory. Use your own domain instead of `dev`.
 
@@ -114,57 +114,57 @@ Each Tomcat installation under `instances` directory is an _instance_. `instance
 
 Usage:
 
-./instance.sh <instance_name> <command>
+    ./instance.sh <instance_name> <command>
 
-Commands:
+    Commands:
 
-  archive-logs            : Archives the instance's log files if it is not running.
+      archive-logs            : Archives the instance's log files if it is not running.
 
-  create                  : Creates (but does not start) an instance on the current node,
-                            if it does not already exist on any nodes and its name conforms to
-                            myapp<number> pattern. (e.g. myapp01, myapp17, etc.)
+      create                  : Creates (but does not start) an instance on the current node,
+                                if it does not already exist on any nodes and its name conforms to
+                                myapp<number> pattern. (e.g. myapp01, myapp17, etc.)
 
-  delete                  : Deletes the instance on the current node, if it exists and does not run.
+      delete                  : Deletes the instance on the current node, if it exists and does not run.
 
-  delete-logs             : Deletes the instance's log files if it is not running.
+      delete-logs             : Deletes the instance's log files if it is not running.
 
-  deploy                  : Deploys 'instance.zip' and 'app.zip', if the instance is not running.
+      deploy                  : Deploys 'instance.zip' and 'app.zip', if the instance is not running.
 
-  take-thread-dump        : Takes thread dump from instance's JVM.
+      take-thread-dump        : Takes thread dump from instance's JVM.
 
-  is-alive                : Returns 'true' if the instance is running and 'false' otherwise.
+      is-alive                : Returns 'true' if the instance is running and 'false' otherwise.
 
-  restart                 : Stops and then starts the instance.
+      restart                 : Stops and then starts the instance.
 
-  restart-verify          : Stops and then starts the instance. It blocks until the instance
-                            has been started successfully or an error occurs.
+      restart-verify          : Stops and then starts the instance. It blocks until the instance
+                                has been started successfully or an error occurs.
 
-  show-log                : Opens the instance's 'catalina.out' log file with 'less' command.
+      show-log                : Opens the instance's 'catalina.out' log file with 'less' command.
 
-  start                   : Archives the instance's logs, then starts it. It neither blocks nor
-                            checks for failures while the instance is starting up.
+      start                   : Archives the instance's logs, then starts it. It neither blocks nor
+                                checks for failures while the instance is starting up.
 
-  start-memusage-recording: Starts to record memory usage data of the instance.
+      start-memusage-recording: Starts to record memory usage data of the instance.
 
-  start-verify            : Archives the instance's logs, then starts it. It blocks until
-                            the instance has been started successfully or an error occurs.
+      start-verify            : Archives the instance's logs, then starts it. It blocks until
+                                the instance has been started successfully or an error occurs.
 
-  status                  : Logs status of the instance (running or not).
+      status                  : Logs status of the instance (running or not).
 
-  stop                    : Stops the instance. Process is killed if it does not stop in
-                            30 seconds.
+      stop                    : Stops the instance. Process is killed if it does not stop in
+                                30 seconds.
 
-  stop-memusage-recording : Stops to record memory usage data of the instance.
+      stop-memusage-recording : Stops to record memory usage data of the instance.
 
-  tail-log                : Follows the instance's 'catalina.out' log file. Ctrl+C can be
-                            used to exit.
+      tail-log                : Follows the instance's 'catalina.out' log file. Ctrl+C can be
+                                used to exit.
 
-Examples:
+    Examples:
 
-  ./instance.sh myapp1 start-verify
-  ./instance.sh myapp1 stop
-  ./instance.sh myapp1 deploy
-  ./instance.sh myapp1 restart
+      ./instance.sh myapp1 start-verify
+      ./instance.sh myapp1 stop
+      ./instance.sh myapp1 deploy
+      ./instance.sh myapp1 restart
 
 
 ## `node.sh`
